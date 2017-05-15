@@ -590,7 +590,7 @@ getES <- function(name, type = NA, destdir = tempdir()) {
   if (type == 'GSE') {
     es <- getGSE(name, destdir)
   }
-  else if (type == "GDS") {
+  else if (type == 'GDS') {
     es <- getGDS(name, destdir)
   }
   else {
@@ -601,13 +601,17 @@ getES <- function(name, type = NA, destdir = tempdir()) {
 \end{lstlisting}
 
 \subsection{Дифференциальная экспрессия --- limma}
+R-пакет limma \cite{limma} предоставляет методы для вычисления дифференциальной экспрессии. Данная функция помогает увидеть, насколько случайны или нет различия между образцами в генах в разных условиях.
+
+Соответственно, было решено включить в phantasus поддержку такой функции.
+
+Реализация функции \texttt{limma} в R-пакете phantasus принимает в себя ExpressionSet и вектор с соответствием Образец-Класс. Класс в этом векторе может быть A, B или пустым. Необходимо сравнить классы A и B, а для этого нужно дополнить фенотипические данные ExpressionSet полученным вектором. 
+
 \subsection{Статистические функции --- stats}
+
 \subsection{Поддержка Protocol Buffers --- protolite}
 
 \section{Связь через OpenCPU API}
-
-\section{Неотсортировано}
-
 \chapterconclusion
 
 \chapter{Реализация}
