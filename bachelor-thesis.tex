@@ -10,6 +10,44 @@
 %% Однако если написать $1, 5x$, то все будет как прежде.
 \usepackage{icomma}
 
+%% Поддержка JavaScript
+\usepackage{color}
+\definecolor{lightgray}{rgb}{.9,.9,.9}
+\definecolor{darkgray}{rgb}{.4,.4,.4}
+\definecolor{purple}{rgb}{0.65, 0.12, 0.82}
+
+\lstdefinelanguage{JavaScript}{
+  keywords={typeof, new, true, false, catch, function, return, null, catch, switch, var, if, in, while, do, else, case, break},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{darkgray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{purple}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstset{
+   language=JavaScript,
+   backgroundcolor=\color{lightgray},
+   extendedchars=true,
+   basicstyle=\footnotesize\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   numbers=left,
+   numberstyle=\footnotesize,
+   numbersep=9pt,
+   tabsize=2,
+   breaklines=true,
+   showtabs=false,
+   captionpos=b
+}
+
+
 %% Данные пакеты необязательны к использованию в бакалаврских/магистерских
 %% Они нужны для иллюстративных целей
 %% Начало
@@ -335,14 +373,43 @@ RPC
 В этом разделе будет рассмотрен модифицированный вариант morpheus.js и потребовавшиеся для его расширения компоненты.
 \subsection{Клиентская сторона OpenCPU --- opencpu.js}
 В обзоре было рассказано об OpenCPU и его необходимости. В данной работе он нужен для связи JavaScript-клиента и R-сервера.
+
+Opencpu.js реализует RPC-вызовы по принципу Asynchronous JavaScript and XML (Ajax  \cite{ajax}), позволяя тем самым пользоваться HTTP API: отправлять и получать HTTP-сообщения в фоновом режиме, тем самым не замедляя работу графического интерфейса и вычислений, осуществляемых на стороне клиента.
+
+В данной библиотеке реализован класс Session, хранящий в себе ключ сессии, адреса на ссылки, файлы и переменные, содержащиеся внутри сессии.
+
+Для подключения к R-пакету на R-сервере удобно использовать код, представленный на листинге~\ref{connect}. Для успешного подключения R-пакет должен быть предварительно установлен на host-машину, на которой располагается сервер. 
+
+\begin{lstlisting}[float=!h,caption={Подключение к R-пакету},label={connect}]
+  ocpu.seturl("//hostname/ocpu/library/phantasus/R");
+\end{lstlisting}
+
+После этого можно вызывать и запускать функции, содержащиеся в данном R-пакете, например, как в листинге~\ref{call.example}.
+
+\begin{lstlisting}[float=!h,caption={Пример вызова R-функции из JavaScript},label={call.example},language=JavaScript]
+  var req = ocpu.rpc("function.name", arguments, callback(session) {
+    \\ Handling result
+  });
+\end{lstlisting}
+
 \subsection{Поддержка Protocol Buffers --- protobuf.js}
+Чаще всего размеры обрабатываемых матриц 10000-40000 строк на 12-40 столбцов. Соответственно, пересылать их между клиентом и сервером в JSON-формате слишком долго.
+
+Как было сказано в обзоре, Protocol Buffers позволяют лучше сериализовать данные, чтобы уменьшить размер пересылаемого пакета.
+
+К сожалению, Google Developers официально поддерживают только Java, Python, C++, Go, Objective-C, Ruby, JavaNano и C\#. Для JavaScript сообщество создает поддержку самостоятельно. После анализа существующих решений, было решено выбрать библиотеку ProtoBuf.js \cite{protobufjs}.
+
+С помощью класса Builder, обрабатывающего файлы с протоколом структуры (\texttt{*.proto}), можно закодировать соответствующий JSON объект в Uint8Array, чтобы после пересылать его на сервер.
+
 \subsection{Интерактивные графики --- plotly.js}
+Для отображения интерактивных графиков используется библиотека plotly.js \cite{plotly}, которая предоставляет удобное API, в котором описание графика строится в JSON-формате. Соответственно, вся графическая работа лежит на клиенте.
 
 \section{R-пакет phantasus}
 Весь реализованный функционал должен иметь клиентскую часть в виде графического интерфейса и серверную в виде R-функции.
 Прежде чем рассматривать созданные функции, будут представлены имеющиеся необходимые элементы.
 
 \subsection{Biobase и ExpressionSet}
+
 \subsection{Загрузка данных из GEO --- GEOquery}
 \subsection{Дифференциальная экспрессия --- limma}
 \subsection{Статистические функции --- stats}
