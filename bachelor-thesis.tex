@@ -680,12 +680,30 @@ limmaAnalysis <- function(es, rows = c(), columns = c(), fieldValues) {
 R-пакет stats \cite{stats} содержит в себе большинство современных используемых методов статистического анализа.
 В данной работе используются два: PCA (метод главных компонент) и kmeans (кластеризация).
 
-
-
 \section{Связь через OpenCPU API}
 \chapterconclusion
+В данной главе были рассмотрены основные составляющие проекта:
+\begin{itemize}
+\item morpheus.js --- база для расширения, поэтому были описаны важные компоненты, с которыми необходимо взаимодействовать во время дополнения проекта новым функционалом
+\item phantasus.js --- расширенный morpheus.js. Были описаны дополнения: новые инструменты, поддержка ProtoBuf, поддержка актуального состояния ключа сессии ExpressionSet для каждого Dataset;
+\item R-пакет phantasus --- R-пакет, содержащий в себе серверные реализации всех добавленных методов и инструментов.
+\end{itemize}
 
 \chapter{Реализация}
+\section{Единый R-пакет phantasus}
+\subsection{Объединенный git-репозиторий}
+\subsection{Запуск через R}
+
+\section{Docker-образ phantasus}
+\subsection{Кэш загрузки данных}
+\subsection{Компиляция Docker-образа}
+\subsection{Запуск Docker-контейнера}
+
+\section{Настройка с помощью Apache}
+\subsection{Переадресация}
+\subsection{Балансировщик для multi-user соединения}
+
+\section{Статистика использования}
 
 \chapterconclusion
 
@@ -745,4 +763,64 @@ message CMPLX {
     required double imag = 2;
 }
 \end{lstlisting}
+\chapter{Dockerfile}
+Как уже неоднократно было сказано, веб-приложение распространяется в том числе и в виде Docker-образа. На листинге~\ref{dockerfile} можно увидеть Dockerfile, использующийся для компиляции Docker-образа.
+\begin{lstlisting}[float=!h,caption={Dockerfile для Docker-образа веб-приложения phantasus},label={dockerfile}]
+FROM ubuntu
+    
+RUN apt-get -y update && \
+    apt-get -y dist-upgrade && \
+    apt-get -y install \
+        software-properties-common \
+        git \
+        libcairo2-dev \
+        libxt-dev \
+        libssl-dev \
+        libssh2-1-dev \
+        libcurl4-openssl-dev \
+        apache2 \
+        locales && \
+    apt-add-repository -y ppa:opencpu/opencpu-1.6 && \
+    apt-get update && \
+    apt-get install -y \
+        opencpu-lib
+
+
+RUN touch /etc/apache2/sites-available/opencpu2.conf
+RUN printf "ProxyPass /ocpu/ http://localhost:8001/ocpu/\nProxyPassReverse /ocpu/ http://localhost:8001/ocpu\n" >> /etc/apache2/sites-available/opencpu2.conf
+RUN a2ensite opencpu2
+
+RUN sh -c 'echo "deb http://cran.rstudio.com/bin/linux/ubuntu trusty/" >> /etc/apt/sources.list'
+RUN gpg --keyserver keyserver.ubuntu.com --recv-key E084DAB9
+RUN gpg -a --export E084DAB9 | apt-key add -
+RUN apt-get -y update && apt-get -y install \
+    r-base \
+    libprotobuf-dev \
+    protobuf-compiler \
+    r-cran-xml
+
+RUN git clone --recursive https://github.com/ctlab/phantasus /root/phantasus
+RUN cp -r /root/phantasus/inst/www/phantasus.js /var/www/html/phantasus   
+
+RUN R -e 'source("https://bioconductor.org/biocLite.R"); install.packages("XML", repo = "http://cran.gis-lab.info"); biocLite("Biobase"); biocLite("limma"); biocLite("org.Mm.eg.db")'
+RUN R -e 'install.packages("devtools", repo = "http://cran.gis-lab.info"); library(devtools); install_github("hadley/scales"); install_github("assaron/GEOquery"); install("/root/phantasus")'
+
+RUN a2enmod proxy_http
+EXPOSE 80
+EXPOSE 443
+EXPOSE 8004
+
+RUN locale-gen en_US.UTF-8  
+ENV LANG en_US.UTF-8  
+ENV LANGUAGE en_US:en  
+ENV LC_ALL en_US.UTF-8     
+
+RUN mkdir -p /var/phantasus/cache
+VOLUME ["/var/phantasus/cache"]
+
+CMD service apache2 start && \
+    R -e 'opencpu::opencpu$start(8001)' && \
+    tail -F /var/log/opencpu/apache_access.log
+\end{lstlisting}
+
 \end{document}
