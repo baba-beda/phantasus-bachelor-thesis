@@ -435,6 +435,13 @@ Opencpu.js реализует RPC-вызовы по принципу Asynchronou
 \subsection{Интерактивные графики --- plotly.js}
 Для отображения интерактивных графиков используется библиотека plotly.js \cite{plotly}, которая предоставляет удобное API, в котором описание графика строится в JSON-формате. Соответственно, вся графическая работа лежит на клиенте.
 
+\subsection{Поддержка ExpressionSet}
+В phantasus.js в Dataset добавлено дополнительное поле esSession, в котором находится объект класса Promise для асинхронного обновления ключа сессии в этом поле.
+Как только Dataset обновляется или только загружается, его актуальное содержимое, сериализованное в ProtoBuf, пересылается в функцию \texttt{createES} в R-пакете phantasus c помощью opencpu.js.
+При создании экземпляра класса Promise указываются две функции \texttt{reject} и \texttt{resolve}. Соответственно, происходит \texttt{reject(error)} с текстом ошибки при ее возникновении и \texttt{resolve(session)}, как только обработка на сервере завершается.
+
+Все функции, использующие ExpressionSet в качестве аргумента (pcaPlot, kmeans, limma), ждут, пока Promise в поле esSession не будет в завершенном состоянии.
+
 \section{R-пакет phantasus}
 Весь реализованный функционал должен иметь клиентскую часть в виде графического интерфейса и серверную в виде R-функции.
 Прежде чем рассматривать созданные функции, будут представлены имеющиеся необходимые элементы.
@@ -468,7 +475,7 @@ Opencpu.js реализует RPC-вызовы по принципу Asynchronou
 В начале работы с phantasus необходимо загрузить данные. Если данные загружены из файла, то они будут сначала обработаны на клиенте, а после пересланы на сервер для создания ExpressionSet из них с помощью кода на листинге~\ref{createES}
 
 \begin{lstlisting}[float=!h,caption={Функция создания ExpressionSet из исходных данных},label={createES},language=R]
-  createES <- function(data, pData, varLabels, fData, fvarLabels) {
+createES <- function(data, pData, varLabels, fData, fvarLabels) {
   exprs <- t(data)
   phenoData <- AnnotatedDataFrame(data.frame(pData))
   varLabels(phenoData) <- varLabels
@@ -484,7 +491,115 @@ Opencpu.js реализует RPC-вызовы по принципу Asynchronou
 
 По завершении функция отправляет \texttt{es} в глобальные переменные, чтобы ExpressionSet был доступен по адресу: /ocpu/tmp/session-key/R/es. Таким образом, получив ключ данной сессии, можно иметь доступ и к ExpressionSet, находящемуся в ней.
 
-\subsection{Загрузка данных из GEO --- GEOquery}
+Ключ сессии обновляется каждый раз при изменении Dataset в phantasus.js (Adjust, Collapse, new HeatMap, Transpose). Изменные данные пересылаются на сервер и ключ сессии обновляется в поле esSession в Dataset.
+\subsection{Загрузка данных из GEO --- loadGEO}
+В обзоре были описаны форматы данных в репозитории Gene Expression Omnibus.
+В phantasus загрузка данных из GEO осуществляется следующим образом:
+\begin{enumerate}
+\item Функция loadGEO принимает на вход идентификатор GEO;
+\item В зависимости от его вида (GSE или GDS) запускаются дополнительные функции (getGSE на листинге~\ref{getGSE} и getGDS на листинге~\ref{getGDS});
+\item После с помощью \texttt{GEOquery::getGEO} загружаются данные с аннотацией (или подгружаются из кэша, если их уже загружали);
+\item Результат обрабатывается, создается ExpressionSet и отправляется в глобальные переменные;
+\item В файл записываются сериализованные в ProtoBuf данные, которые после считает и обработает клиент
+\end{enumerate}
+\begin{lstlisting}[float=!h,caption={Загрузка данных типа GSE из Gene Expression Omnibus},label={getGSE},language=R]
+getGSE <- function(name, destdir = tempdir()) {
+  es <- getGEO(name, AnnotGPL = T, destdir = destdir)[[1]]
+  featureData(es) <- featureData(es)[,grepl("symbol", fvarLabels(es), ignore.case = T)]
+  phenoData(es) <- phenoData(es)[,grepl("characteristics", varLabels(es), ignore.case = T)
+                                  | (varLabels(es) %in% c("title", "id", "geo_accession"))]
+  chr <- varLabels(es)[grepl("characteristics", varLabels(es), ignore.case = T)]
+  take <- function(x, n) {
+    sapply(x, function(x) { x[[n]] })
+  }
+  rename <- function(prevName, x) {
+    splitted <- strsplit(x, ": ")
+    sumlength <- sum(sapply(as.vector(splitted), length))
+    if (sumlength != 2 * length(x)) {
+       return(list(name = prevName, x = x))
+    }
+    splittedFirst <- unique(take(splitted, 1))
+    if (length(splittedFirst) == 1) {
+       res = list(name = splittedFirst[1], x = take(splitted, 2))
+    }
+    else {
+       res = list(name = prevName, x = x)
+    }
+    res
+  }
+  renamed <- lapply(chr, function(x) { rename(x, as.vector(pData(es)[,x])) })
+  phenoData(es) <- phenoData(es)[, !(varLabels(es) %in% chr)]
+  pData(es)[,take(renamed,1)] <- take(renamed,2)
+  es
+}
+\end{lstlisting}
+
+\begin{lstlisting}[float=!h,caption={Загрузка данных типа GDS из Gene Expression Omnibus},label={getGDS},language=R]
+ getGDS <- function(name, destdir = tempdir()) {
+  l <- getGEO(name, destdir = destdir)
+  table <- slot(l, 'dataTable') # extracting all useful information on dataset
+  data <- Table(table)  # extracting table ID_REF | IDENTIFIER/SAMPLE | SAMPLE1 | ...
+  columnsMeta <- Columns(table) # phenoData
+  sampleNames <- as.vector(columnsMeta[["sample"]])
+  rownames <- as.vector(data[["ID_REF"]])
+  symbol <- as.vector(data[["IDENTIFIER"]])
+  data <- data[,sampleNames] # expression data
+  exprs <- as.matrix(data)
+  row.names(exprs) <- rownames
+  row.names(columnsMeta) <- sampleNames
+  # columnsMeta <- columnsMeta[,!(colnames(columnsMeta) %in% c('sample'))] 
+  pData <- AnnotatedDataFrame(data.frame(columnsMeta, check.names = F))
+  fData <- data.frame(matrix(symbol, nrow(exprs), 1));
+  colnames(fData) <- "symbol"
+  fData <- AnnotatedDataFrame(fData)
+  featureNames(fData) <- rownames
+  ExpressionSet(assayData = exprs, phenoData = pData, featureData = fData)
+}
+\end{lstlisting}
+
+Код и его дополнительные рутины можно увидеть на листинге~\ref{loadGEO}.
+
+\begin{lstlisting}[float=!h,caption={Загрузка данных из Gene Expression Omnibus},label={loadGEO},language=R]
+loadGEO <- function(name, type = NA) {
+  es <- getES(name, type, destdir = "/var/phantasus/cache")
+  assign("es", es, envir = parent.frame())
+  data <- as.matrix(exprs(es)); colnames(data) <- NULL; row.names(data) <- NULL
+
+  pdata <- as.matrix(pData(es)); colnames(pdata) <- NULL; row.names(pdata) <- NULL
+
+  participants <- colnames(es)
+  rownames <- rownames(es)
+
+  fdata <- as.matrix(fData(es))
+  colnames(fdata) <- NULL
+  row.names(fdata) <- NULL
+
+  res <- list(data = data, pdata = pdata,
+              fdata = fdata, rownames = rownames,
+              colMetaNames = varLabels(phenoData(es)),
+              rowMetaNames = varLabels(featureData(es)))
+
+  f <- tempfile(pattern = "gse", tmpdir = getwd(), fileext = ".bin")
+  writeBin(protolite::serialize_pb(res), f)
+  f
+}
+getES <- function(name, type = NA, destdir = tempdir()) {
+  if (is.na(type)) {
+     type = substr(name, 1, 3)
+  }
+  if (type == 'GSE') {
+    es <- getGSE(name, destdir)
+  }
+  else if (type == "GDS") {
+    es <- getGDS(name, destdir)
+  }
+  else {
+    stop("Incorrect name or type of the dataset")
+  }
+  es
+}
+\end{lstlisting}
+
 \subsection{Дифференциальная экспрессия --- limma}
 \subsection{Статистические функции --- stats}
 \subsection{Поддержка Protocol Buffers --- protolite}
