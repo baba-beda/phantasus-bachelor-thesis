@@ -11,11 +11,11 @@ TODO
 - [ ] licenses
 - [x] bioinformatics
 - [ ] about instruments
-  - [ ] node.js
+  - [x] node.js
   - [ ] shiny
-  - [ ] opencpu
+  - [x] opencpu
   - [ ] geo
-    - [ ] dataset organization
+    - [x] dataset organization
     - [ ] images and schemes? 
   - [ ] docker
     - [x] info
@@ -28,7 +28,7 @@ TODO
 - [ ] javascript listings (curly brackets?)
 - [ ] R listings
 - [ ] sort unsorted
-- [ ] introduction
+- [x] introduction
 - [ ] integration
 - [ ] fix tables and images and listings
-- [ ] fix not found bibliography
+- [x] fix not found bibliography
