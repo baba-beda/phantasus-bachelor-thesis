@@ -19,7 +19,7 @@
 \definecolor{mauve}{rgb}{0.58,0,0.82}
 
 \newcolumntype{L}{>{\arraybackslash}m{2.5cm}}
-\newcolumntype{K}{>{\arraybackslash}m{4cm}}
+\newcolumntype{K}{>{\arraybackslash}m{3cm}}
 
 %% Поддержка R
 \lstset{ %
@@ -110,6 +110,7 @@
 %% Дата защиты. Можно не указывать, тогда надо будет заполнить от руки.
 %% \defencedate{15}{июня}{2015}
 
+\secretary{Павлова О.Н.}
 %% Задание
 %%% Техническое задание и исходные данные к работе
 \technicalspec{Разработать веб-приложение для анализа экспрессии генов, интегрирующее возможности визуального анализа morpheus.js и методы анализа библиотек R/Bioconductor. Веб-приложение должно быть легко дополняемо новыми методами для исследования и анализа экспрессии генов.}
@@ -284,27 +285,60 @@ Tmsb4x & 16.30	    & 16.32	    & 16.23	    & 16.21	    & 16.32	     \\\hline
 Входной точкой \emph{API} является \texttt{/ocpu/}.
 \texttt{GET}-запрос используется для получения некоторого ресурса, а \texttt{POST}-запрос используется для \emph{RPC}. На таблице~\ref{ocpu_api} можно увидеть более подробное описание запросов.
 
-
 \begin{table}[!h]
   \small
 \caption{Запросы к \emph{OpenCPU}-серверу, их аргументы и действия}\label{ocpu_api}
 \centering
-\begin{tabu}{|l|l|L|L|K|}
+\begin{tabu}{|l|L|K|l|}
   \hline
-Запрос        & Цель   & Действие          & Аргументы                 & Пример                                          \\\hline 
-\texttt{GET}  & объект & посмотреть объект & формат вывода             & GET /ocpu/library/MASS/R/cats/json     \\\hline
-\texttt{POST} & объект & вызвать функцию   & аргументы к функции       & POST /ocpu/library/stats/R/rnorm       \\\hline
-\texttt{GET}  & файл   & прочитать файл    & -                         & GET /ocpu/library/MASS/NEWS            \\\hline
-\texttt{POST} & файл   & запустить скрипт  & интерпретатор             & POST /ocpu/library/MASS?scripts/ch01.R \\\hline
+Запрос        & Действие          & Аргументы                    & Пример                                 \\\hline 
+\texttt{GET}  & посмотреть объект & формат представления объекта & GET /ocpu/library/MASS/R/cats/json     \\\hline
+\texttt{POST} & вызвать функцию   & аргументы функции            & POST /ocpu/library/stats/R/rnorm       \\\hline
+\texttt{GET}  & прочитать файл    & -                            & GET /ocpu/library/MASS/NEWS            \\\hline
+\texttt{POST} & запустить скрипт  & аргументы запуска скрипта    & POST /ocpu/library/MASS?scripts/ch01.R \\\hline
 \end{tabu}
 \end{table}
 
-Имеется также библиотека \textit{opencpu.js} для интеграции JavaScript и R.
+На \emph{OpenCPU}-сервере могут быть доступны:
+\begin{itemize}
+\item библиотеки и содержащиеся в них пакеты: \texttt{/ocpu/library/{pkgname}/};
+\item пакеты из \emph{git}-репозиториев: \texttt{/ocpu/apps/{gituser}/{reponame}/};
+\item пакеты, установленные в домашней директории \emph{Linux}-пользователя: \texttt{/ocpu/user/{username}/library/{pkgname}/};
+\item временные сессии, содержащие вывод от запуска функции или скрипта: \texttt{/ocpu/tmp/{key}/}.
+\end{itemize}
+
+\subsubsection{Opencpu.js}
+Так как зачастую \emph{OpenCPU} используется разработчиками для использования \emph{R} в веб-приложениях для анализа и визуализации данных, для удобной интеграции \emph{JavaScript} и \emph{R} существует библиотека \textit{opencpu.js}, которая реалазует \emph{RPC}-вызовы по принципу \emph{Asynchronous JavaScript and XML} (\emph{Ajax}~\cite{ajax}). Таким образом запросы обрабатываются в фоновом режиме, тем самым не замедляя работу графического интерфейса и вычислений, осуществляемых на стороне клиента.
+
+В данной библиотеке реализован класс \texttt{Session}, содержащий в себе ключ сессии, адреса на ссылки, файлы и переменные, существующие внутри сессии.
+
+Для подключения к \emph{R}-пакету на \emph{OpenCPU}-сервере удобно использовать код, представленный на листинге~\ref{connect}. Для успешного подключения \emph{R}-пакет должен быть предварительно установлен на \emph{host}-машину, на которой располагается сервер. 
+
+\begin{lstlisting}[float=!h,caption={Подключение к \emph{R}-пакету},label={connect}]
+  ocpu.seturl("//hostname/ocpu/library/{pkgname}/R");
+\end{lstlisting}
+После этого можно вызывать и запускать функции, содержащиеся в данном \emph{R}-пакете, например, как в листинге~\ref{call.example}.
+
+\begin{lstlisting}[float=!h,caption={Шаблон вызова \emph{R}-функции из \emph{JavaScript}},label={call.example},language=JavaScript]
+  var req = ocpu.rpc("function.name", arguments, callback(session) {
+    \\ Handling result
+  });
+\end{lstlisting}
 
 \subsection{Gene Expression Omnibus}
 \textbf{Gene Expression Omnibus (GEO)} --- международный публичный репозиторий, агрегирующий и распространяющий различные формы геномных данных от исследовательского сообщества~\cite{geo}.
 
-В библиотеке \emph{Bioconductor} есть R-пакет \emph{GEOquery} для удобной загрузки данных из \emph{GEO}~\cite{geoquery}.
+\emph{GEO} предоставляет устойчивую базу данных для эффективного хранения геномных данных, содержит их в качественно аннотированном формате и дает возможность удобно как добавлять новые данные для публикации, так и запрашивать интересующие данные для исследований.
+
+В \emph{GEO} содержатся следующие типы и форматы данных:
+\begin{itemize}
+\item информация о платформе, на которой производилось секвенирование генов (\emph{Platform records}): \texttt{GPLxxx};
+\item информация об образцах и условиях, в которых производились исследования этих образцов (\emph{Sample records}): \texttt{GSMxxx};
+\item информация о непосредственно исследованиях, полученные данные и выводы (\emph{Series records}): \texttt{GSExxx}.
+\item обработанная и подготовленная для дальнейшего статистического анализа \emph{GEO}-кураторами информация об исследованиях (\emph(DataSet records)): \texttt{GDSxxx}.
+\end{itemize}
+
+В библиотеке \emph{Bioconductor} есть \emph{R}-пакет \emph{GEOquery} для удобной загрузки данных из \emph{GEO}~\cite{geoquery}.
 
 \subsection{Docker}
 \textbf{Docker} --- программное обеспечение для автоматизации запуска и внедрения приложений внутри контейнеров~\cite{docker}.
@@ -318,6 +352,8 @@ Tmsb4x & 16.30	    & 16.32	    & 16.23	    & 16.21	    & 16.32	     \\\hline
 В отличие от виртуальных машин, которые запускают гостевую операционную систему в каждом экземпляре, контейнеры могут разделять общее ядро, и вся информация, которая должна быть в контейнере, это исполняемый процесс и его зависимости. Исполняемые процессы из контейнеров работают как нативные процессы, и могут управляться по отдельности. 
 
 Для контроля версий и хранения образов в открытом доступе используется \emph{Docker Hub}~\cite{dhub}. В этом хранилище можно как добавлять репозитории, управляемые вручную, так и поддерживать автоматические сборки (\textit{Automated Build}), которые привязаны к репозиториям на в популярных системах контроля версий: GitHub \cite{github} и Bitbucket \cite{bitbucket}.
+
+\subsection{JSON}
 
 \subsection{Protocol Buffers}
 \textbf{Protocol Buffers (Protobuf)} --- гибкий, универсальный и автоматизированный механизм для сериализации структурированных данных \cite{protobuf}.
@@ -446,24 +482,6 @@ Tmsb4x & 16.30	    & 16.32	    & 16.23	    & 16.21	    & 16.32	     \\\hline
 В этом разделе будет рассмотрен модифицированный вариант morpheus.js и потребовавшиеся для его расширения компоненты.
 \subsection{Клиентская сторона OpenCPU --- opencpu.js}
 В обзоре было рассказано об OpenCPU и его необходимости. В данной работе он нужен для связи JavaScript-клиента и R-сервера.
-
-Opencpu.js реализует RPC-вызовы по принципу Asynchronous JavaScript and XML (Ajax  \cite{ajax}), позволяя тем самым пользоваться HTTP API: отправлять и получать HTTP-сообщения в фоновом режиме, тем самым не замедляя работу графического интерфейса и вычислений, осуществляемых на стороне клиента.
-
-В данной библиотеке реализован класс Session, хранящий в себе ключ сессии, адреса на ссылки, файлы и переменные, содержащиеся внутри сессии.
-
-Для подключения к R-пакету на R-сервере удобно использовать код, представленный на листинге~\ref{connect}. Для успешного подключения R-пакет должен быть предварительно установлен на host-машину, на которой располагается сервер. 
-
-\begin{lstlisting}[float=!h,caption={Подключение к R-пакету},label={connect}]
-  ocpu.seturl("//hostname/ocpu/library/phantasus/R");
-\end{lstlisting}
-
-После этого можно вызывать и запускать функции, содержащиеся в данном R-пакете, например, как в листинге~\ref{call.example}.
-
-\begin{lstlisting}[float=!h,caption={Пример вызова R-функции из JavaScript},label={call.example},language=JavaScript]
-  var req = ocpu.rpc("function.name", arguments, callback(session) {
-    \\ Handling result
-  });
-\end{lstlisting}
 
 \subsection{Поддержка Protocol Buffers --- protobuf.js}
 Чаще всего размеры обрабатываемых матриц 10000-40000 строк на 12-40 столбцов. Соответственно, пересылать их между клиентом и сервером в JSON-формате слишком долго.
