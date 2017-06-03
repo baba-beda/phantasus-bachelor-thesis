@@ -14,14 +14,12 @@ TODO
   - [x] node.js
   - [ ] shiny
   - [x] opencpu
-  - [ ] geo
+  - [x] geo
     - [x] dataset organization
-    - [ ] images and schemes? 
-  - [ ] docker
+  - [x] docker
     - [x] info
-    - [ ] images
-  - [ ] json
-  - [ ] protobuf
+  - [x] json
+  - [x] protobuf
   - [ ] apache2
   - [ ] html
 - [ ] add more requirements
