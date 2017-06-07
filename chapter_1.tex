@@ -222,14 +222,14 @@ Tmsb4x & 16.30	    & 16.32	    & 16.23	    & 16.21	    & 16.32	     \\\hline
   \small
 \caption{Запросы к \emph{OpenCPU}-серверу, их аргументы и действия}\label{ocpu_api}
 \centering
-\begin{tabu} to \textwidth {| l | L | K | X |}
+\begin{tabular}{|l|p{2.5cm}|p{2.5cm}|l|}
   \hline
 Запрос        & Действие          & Аргументы                    & Пример                                 \\\hline 
 \texttt{GET}  & посмотреть объект & формат представления объекта & GET /ocpu/library/MASS/R/cats/json     \\\hline
 \texttt{POST} & вызвать функцию   & аргументы функции            & POST /ocpu/library/stats/R/rnorm       \\\hline
 \texttt{GET}  & прочитать файл    & -                            & GET /ocpu/library/MASS/NEWS            \\\hline
 \texttt{POST} & запустить скрипт  & аргументы запуска скрипта    & POST /ocpu/library/MASS?scripts/ch01.R \\\hline
-\end{tabu}
+\end{tabular}
 \end{table}
 
 На \emph{OpenCPU}-сервере могут быть доступны:
