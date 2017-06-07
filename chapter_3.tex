@@ -13,7 +13,7 @@
 В разделе~\ref{geointro} обзора были описаны форматы данных в репозитории \emph{Gene Expression Omnibus}.
 В \emph{phantasus} загрузка данных из \emph{GEO} осуществляется следующим образом:
 \begin{enumerate}
-\item функция \texttt{loadGEO} принимает на вход идентификатор \texttt{GEO};
+\item функция \texttt{loadGEO} принимает на вход идентификатор \emph{GEO};
 \item в зависимости от его вида (\emph{GSE} или \emph{GDS}) запускаются дополнительные функции (\texttt{getGSE} на листинге~\ref{getGSE} и \texttt{getGDS} на листинге~\ref{getGDS});
 \item в каждой из двух функций с помощью \texttt{GEOquery::getGEO} загружаются данные с аннотацией (или подгружаются из кэша, если он указан или если их уже загружали);
 \item результат обрабатывается, создается \texttt{ExpressionSet} и отправляется в глобальные переменные;
