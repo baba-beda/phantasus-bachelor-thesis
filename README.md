@@ -2,18 +2,17 @@
 
 TODO
 =====
-- [ ] architecture
-  - [ ] morpheus.js
+- [x] architecture
+  - [x] morpheus.js
     - [x] text
-    - [ ] images
-  - [ ] R-package phantasus
-  - [ ] connection through opencpu
-- [ ] licenses
+    - [x] images
+  - [x] R-package phantasus
+  - [x] connection through opencpu
 - [x] bioinformatics
-- [ ] tcga
+- [x] tcga
 - [ ] about instruments
   - [x] node.js
-  - [ ] shiny
+  - [x] shiny
   - [x] opencpu
   - [x] geo
     - [x] dataset organization
@@ -22,12 +21,11 @@ TODO
   - [x] json
   - [x] protobuf
   - [ ] apache2
-  - [ ] html
 - [ ] add more requirements
 - [ ] javascript listings (curly brackets?)
-- [ ] R listings
-- [ ] sort unsorted
+- [x] R listings
+- [x] sort unsorted
 - [x] introduction
-- [ ] integration
-- [ ] fix tables and images and listings
+- [x] integration
+- [x] fix tables and images and listings
 - [x] fix not found bibliography
